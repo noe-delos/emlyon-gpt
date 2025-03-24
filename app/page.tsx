@@ -11,8 +11,9 @@ import { Icon } from "@iconify/react";
 import { AnimatePresence, motion } from "framer-motion";
 import "katex/dist/katex.min.css";
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChangeEvent, FormEvent, KeyboardEvent, memo, ReactNode, useEffect, useRef, useState } from 'react';
+import { PopupModal } from "react-calendly";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
@@ -129,15 +130,69 @@ export default function Page() {
   });
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isAdmin = searchParams.get('admin_access') === 'true';
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const rootElementRef = useRef<HTMLDivElement>(null);
   const [hoveringMessage, setHoveringMessage] = useState<string | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showCalendly, setShowCalendly] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
+  const [isClientSide, setIsClientSide] = useState(false);
 
   console.log(isAtBottom)
-  // Shorter French placeholder text
+  // Initialize message count from localStorage on component mount
+  useEffect(() => {
+    setIsClientSide(true);
+
+    const storedCount = localStorage.getItem('userMessageCount');
+    if (storedCount) {
+      setMessageCount(parseInt(storedCount));
+    }
+  }, []);
+
+  // Custom submit handler to check message quota
+  const customSubmit = (e: FormEvent) => {
+    e.preventDefault();
+
+    // Get current message count from localStorage
+    const currentCount = parseInt(localStorage.getItem('userMessageCount') || '0');
+
+    // Check if user is over quota and not an admin
+    if (currentCount >= 2 && !isAdmin) {
+      setShowCalendly(true);
+      return;
+    }
+
+    // Otherwise proceed with normal submission
+    handleSubmit(e);
+
+    // Update message count in localStorage
+    const newCount = currentCount + 1;
+    localStorage.setItem('userMessageCount', newCount.toString());
+    setMessageCount(newCount);
+
+    // Show Calendly after second message
+    if (newCount === 2 && !isAdmin) {
+      setTimeout(() => {
+        setShowCalendly(true);
+      }, 500);
+    }
+
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
+    // Ensure we scroll to bottom after submitting
+    setIsAtBottom(true);
+  };
+
+  // Placeholder text
   const placeholder = "Rechercher des alumnis...";
 
   // Suggestion button data with icons
@@ -230,17 +285,6 @@ export default function Page() {
     }
   };
 
-  // Handle form submission
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    handleSubmit(e);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-    // Ensure we scroll to bottom after submitting
-    setIsAtBottom(true);
-  };
-
   // Handle suggestion click - now also submits the form
   const handleSuggestion = (suggestion: string) => {
     if (textareaRef.current) {
@@ -300,7 +344,17 @@ export default function Page() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full" ref={rootElementRef}>
+      {/* Calendly Popup Modal - Only render on client side and when rootElement is available */}
+      {isClientSide && showCalendly && (
+        <PopupModal
+          url="https://calendly.com/paul-ks-entreprise/30min"
+          rootElement={rootElementRef.current || document.body}
+          onModalClose={() => setShowCalendly(false)}
+          open={true}
+        />
+      )}
+
       {/* Header with logo and avatar */}
       <div className="w-full relative">
         <div className="max-w-5xl mx-auto px-4 py-3">
@@ -375,7 +429,7 @@ export default function Page() {
                   transition={{ delay: 0.3 }}
                   className="max-w-3xl mx-auto"
                 >
-                  <form ref={formRef} onSubmit={onSubmit} className="relative">
+                  <form ref={formRef} onSubmit={customSubmit} className="relative">
                     <textarea
                       ref={textareaRef}
                       value={input}
@@ -485,7 +539,7 @@ export default function Page() {
           >
             <div className="max-w-5xl mx-auto px-4 py-4">
               <div className="max-w-3xl mx-auto relative mb-5">
-                <form ref={formRef} onSubmit={onSubmit} className="relative">
+                <form ref={formRef} onSubmit={customSubmit} className="relative">
                   <textarea
                     ref={textareaRef}
                     value={input}
@@ -508,6 +562,13 @@ export default function Page() {
                     )}
                   </div>
                 </form>
+
+                {/* Message quota indicator */}
+                {messageCount >= 2 && !isAdmin && (
+                  <div className="mt-2 text-center text-sm text-[#E43E22]">
+                    Vous pouvez continuer à discuter, mais nous vous recommandons de prendre rendez-vous pour un échange plus approfondi.
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
