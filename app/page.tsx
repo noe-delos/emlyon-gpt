@@ -141,18 +141,12 @@ export default function Page() {
   const [hoveringMessage, setHoveringMessage] = useState<string | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showCalendly, setShowCalendly] = useState(false);
-  const [messageCount, setMessageCount] = useState(0);
   const [isClientSide, setIsClientSide] = useState(false);
 
   console.log(isAtBottom)
   // Initialize message count from localStorage on component mount
   useEffect(() => {
     setIsClientSide(true);
-
-    const storedCount = localStorage.getItem('userMessageCount');
-    if (storedCount) {
-      setMessageCount(parseInt(storedCount));
-    }
   }, []);
 
   // Custom submit handler to check message quota
@@ -174,7 +168,6 @@ export default function Page() {
     // Update message count in localStorage
     const newCount = currentCount + 1;
     localStorage.setItem('userMessageCount', newCount.toString());
-    setMessageCount(newCount);
 
     // Show Calendly after second message
     if (newCount === 2 && !isAdmin) {
