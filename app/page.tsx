@@ -562,13 +562,6 @@ export default function Page() {
                     )}
                   </div>
                 </form>
-
-                {/* Message quota indicator */}
-                {messageCount >= 2 && !isAdmin && (
-                  <div className="mt-2 text-center text-sm text-[#E43E22]">
-                    Vous pouvez continuer à discuter, mais nous vous recommandons de prendre rendez-vous pour un échange plus approfondi.
-                  </div>
-                )}
               </div>
             </div>
           </motion.div>
